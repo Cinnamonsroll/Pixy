@@ -1,113 +1,132 @@
-import Image from 'next/image'
+"use client";
+import { For } from "@/components/functional/for.component";
+import { useEffect, useMemo, useState, useRef } from "react";
+import { useSearchParams } from "next/navigation";
+import SyntaxEditable from "@/components/functional/SyntaxEditable";
 
 export default function Home() {
+  const query = useSearchParams();
+  const [count, set_count] = useState(16);
+  const [code, set_code] = useState("");
+  const [values, set_values] = useState<Float32Array | null>(null);
+  const animationRef = useRef<number>(0);
+  const [tab, set_tab] = useState(0);
+  const callback = useMemo(() => {
+    try {
+      const func = new Function(
+        "t",
+        "i",
+        "x",
+        "y",
+        `
+        try {
+          with(Math){
+          return (${(code || "sin(i ** 2)").replace(/\\/g, ";")});
+          }
+        } catch (err) {
+          return err;
+        }
+      `
+      );
+      return func;
+    } catch (err) {
+      console.error("Error creating function:", err);
+      return () => err;
+    }
+  }, [code]);
+
+  const animate = (time: number) => {
+    const newTime = time / 1000;
+    const newValues = new Float32Array(count * count * 4);
+
+    for (let i = 0; i < count * count; i++) {
+      const x = i % count;
+      const y = Math.floor(i / count);
+      const value = callback(newTime, i, x, y);
+      const size = count * 2;
+      let radius = (Math.abs(value) * size) / 2;
+      if (radius > size / 2) radius = size / 2;
+
+      newValues[i * 4] = x;
+      newValues[i * 4 + 1] = y;
+      newValues[i * 4 + 2] = radius;
+      newValues[i * 4 + 3] = value > 0 ? 1 : 0;
+    }
+
+    set_values(newValues);
+
+    animationRef.current = requestAnimationFrame(animate);
+  };
+
+  useEffect(() => {
+    animationRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationRef.current);
+  }, [animate]);
+
+  useEffect(() => {
+    const routerCode = query.get("code");
+    if (routerCode) set_code(decodeURIComponent(routerCode as string));
+  }, []);
+
+  const handleShareClick = () => {
+    navigator.clipboard.writeText(
+      `${window.location.protocol}//${
+        window.location.host
+      }?code=${encodeURIComponent(code)}`
+    );
+  };
+  const handleCodeChange = (newCode: string) => {
+    set_code(newCode);
+  };
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">src/app/page.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{' '}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
+    <div className="flex flex-col h-screen text-gray-100 bg-background-950">
+      <div className="w-full bg-background-800 bg-opacity-40 h-16 p-2 border-b border-b-background-950 flex items-center gap-1">
+        <button
+          onClick={handleShareClick}
+          className="w-20 bg-[#4e51dd] text-white rounded-md p-2 text-xs font-bold flex justify-center"
+        >
+          Share
+        </button>
+        <button
+          className="w-20 bg-[#4e51dd] text-white rounded-md p-2 text-xs font-bold flex md:hidden justify-center"
+          onClick={() => set_tab(tab^1)}
+        >
+          {!tab ? "Preview" : "Editor"}
+        </button>
+      </div>
+      <div className="w-full h-full grid grid-cols-1 md:grid-cols-2">
+        {/* Code editor */}
+        <div className={`w-full h-full ${!tab ? "flex" : "hidden"} justify-center items-center`}>
+        <SyntaxEditable code={code} onChange={handleCodeChange} />
+        </div>
+        {/* Output */}
+        <div className={`h-full w-full ${!tab ? "hidden" : "flex"} md:flex items-center justify-center`}>
+          <div className={`grid grid-cols-16`}>
+            <For
+              count={count * count}
+              render={(index: number) => {
+                if (!values) return null;
+                const baseIndex = index * 4;
+                const radius = values[baseIndex + 2];
+                const color =
+                  values[baseIndex + 3] > 0 ? "bg-white" : "bg-red-600";
+
+                return (
+                  <div
+                    key={index}
+                    style={{
+                      width: radius,
+                      height: radius,
+                    }}
+                    className={`${color} rounded-full`}
+                  ></div>
+                );
+              }}
             />
-          </a>
+          </div>
         </div>
       </div>
-
-      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 before:lg:h-[360px] z-[-1]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Docs{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Learn{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Templates{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Explore starter templates for Next.js.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Deploy{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
-  )
+    </div>
+  );
 }
