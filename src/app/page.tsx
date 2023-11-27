@@ -69,6 +69,8 @@ export default function Home() {
     if (routerCode) {
       set_code(decodeURIComponent(routerCode as string));
       set_fetched(true);
+    }else{
+      set_fetched(true);
     }
   }, []);
 
