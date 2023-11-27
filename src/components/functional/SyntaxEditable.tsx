@@ -79,6 +79,7 @@ const SyntaxEditable: React.FC<SyntaxEditableProps> = ({ code, onChange }) => {
   return (
     <div
       ref={editableRef}
+      content={code}
       role="textbox"
       contentEditable
       className="w-full h-full bg-background-800 bg-opacity-60 p-3 outline-none"
