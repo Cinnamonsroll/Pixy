@@ -3,7 +3,7 @@ import { For } from "@/components/functional/for.component";
 import { useEffect, useMemo, useState, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import SyntaxEditable from "@/components/functional/SyntaxEditable";
-
+import { Toaster, toast } from 'sonner'
 export default function Home() {
   const query = useSearchParams();
   const [count, set_count] = useState(16);
@@ -80,6 +80,7 @@ export default function Home() {
         window.location.host
       }?code=${encodeURIComponent(code)}`
     );
+    toast.success("Copied share url to clipboard!")
   };
   const handleCodeChange = (newCode: string) => {
     set_code(newCode);
@@ -87,6 +88,7 @@ export default function Home() {
 
   return (
     <div className="flex flex-col h-screen text-gray-100 bg-background-950">
+      <Toaster />
       <div className="w-full bg-background-800 bg-opacity-40 h-16 p-2 border-b border-b-background-950 flex items-center gap-1">
         <button
           onClick={handleShareClick}
