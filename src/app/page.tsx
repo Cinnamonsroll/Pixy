@@ -11,6 +11,7 @@ export default function Home() {
   const [values, set_values] = useState<Float32Array | null>(null);
   const animationRef = useRef<number>(0);
   const [tab, set_tab] = useState(0);
+  const [fetched, set_fetched] = useState(false);
   const callback = useMemo(() => {
     try {
       const func = new Function(
@@ -65,7 +66,10 @@ export default function Home() {
 
   useEffect(() => {
     const routerCode = query.get("code");
-    if (routerCode) set_code(decodeURIComponent(routerCode as string));
+    if (routerCode) {
+      set_code(decodeURIComponent(routerCode as string));
+      set_fetched(true);
+    }
   }, []);
 
   const handleShareClick = () => {
@@ -90,18 +94,28 @@ export default function Home() {
         </button>
         <button
           className="w-20 bg-[#4e51dd] text-white rounded-md p-2 text-xs font-bold flex md:hidden justify-center"
-          onClick={() => set_tab(tab^1)}
+          onClick={() => set_tab(tab ^ 1)}
         >
           {!tab ? "Preview" : "Editor"}
         </button>
       </div>
       <div className="w-full h-full grid grid-cols-1 md:grid-cols-2">
         {/* Code editor */}
-        <div className={`w-full h-full ${!tab ? "flex" : "hidden"} justify-center items-center`}>
-        <SyntaxEditable code={code} onChange={handleCodeChange} />
+        <div
+          className={`w-full h-full ${
+            !tab ? "flex" : "hidden"
+          } justify-center items-center bg-background-800 bg-opacity-60`}
+        >
+          {fetched && (
+            <SyntaxEditable code={code} onChange={handleCodeChange} />
+          )}
         </div>
         {/* Output */}
-        <div className={`h-full w-full ${!tab ? "hidden" : "flex"} md:flex items-center justify-center`}>
+        <div
+          className={`h-full w-full ${
+            !tab ? "hidden" : "flex"
+          } md:flex items-center justify-center`}
+        >
           <div className={`grid grid-cols-16`}>
             <For
               count={count * count}
